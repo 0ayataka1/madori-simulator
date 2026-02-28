@@ -3197,8 +3197,12 @@ canvas.addEventListener('mousemove',e=>{
         const dx=(x-roomDrag.startX)/SCALE, dy=(y-roomDrag.startY)/SCALE;
         if(roomDrag.type==='move'){
           const _fl=floors[curFloor];
-          r.x=snapS(Math.max(0, Math.min(_fl.W - Math.max(r.w,0.1), roomDrag.origX+dx)));
-          r.y=snapS(Math.max(0, Math.min(_fl.H - Math.max(r.h,0.1), roomDrag.origY+dy)));
+          const rot=((r.rotation||0)%360)*Math.PI/180;
+          const ac=Math.abs(Math.cos(rot)), as=Math.abs(Math.sin(rot));
+          const hw=ac*r.w/2+as*r.h/2;
+          const hh=as*r.w/2+ac*r.h/2;
+          r.x=snapS(Math.max(hw-r.w/2, Math.min(_fl.W-r.w/2-hw, roomDrag.origX+dx)));
+          r.y=snapS(Math.max(hh-r.h/2, Math.min(_fl.H-r.h/2-hh, roomDrag.origY+dy)));
         } else {
           const h=roomDrag.handle;
           const fl=floors[curFloor];
@@ -4454,12 +4458,16 @@ function onFloorSize(dim, val){
   document.getElementById('floorSizeDisplay').textContent =
     fl.W.toFixed(2) + ' × ' + fl.H.toFixed(2) + ' m';
   updateAreaLabel();
-  // Clamp rooms to new floor bounds
+  // Clamp rooms to new floor bounds (rotation-aware)
   floors[curFloor].rooms.forEach(r => {
-    r.x = Math.min(r.x, fl.W - r.w);
-    r.y = Math.min(r.y, fl.H - r.h);
-    r.x = Math.max(0, r.x);
-    r.y = Math.max(0, r.y);
+    const rot = ((r.rotation||0)%360)*Math.PI/180;
+    const ac = Math.abs(Math.cos(rot)), as = Math.abs(Math.sin(rot));
+    const hw = ac*r.w/2 + as*r.h/2;
+    const hh = as*r.w/2 + ac*r.h/2;
+    r.x = Math.min(r.x, fl.W - r.w/2 - hw);
+    r.y = Math.min(r.y, fl.H - r.h/2 - hh);
+    r.x = Math.max(hw - r.w/2, r.x);
+    r.y = Math.max(hh - r.h/2, r.y);
   });
   draw();
 }
@@ -4685,13 +4693,21 @@ function applyAppState(state){
       if(sf.rooms){
         // Sanitize: clamp room coordinates to valid range on load
         const seenRoomIds = new Set();
-        floors[k].rooms = sf.rooms.map(r=>({
-          ...r,
-          x: Math.max(0, r.x??0),
-          y: Math.max(0, r.y??0),
-          w: Math.max(0.1, r.w??0.1),
-          h: Math.max(0.1, r.h??0.1),
-        })).map(r=>{
+        floors[k].rooms = sf.rooms.map(r=>{
+          const rw = Math.max(0.1, r.w??0.1);
+          const rh = Math.max(0.1, r.h??0.1);
+          const rot = ((r.rotation||0)%360)*Math.PI/180;
+          const ac = Math.abs(Math.cos(rot)), as = Math.abs(Math.sin(rot));
+          const hw = ac*rw/2 + as*rh/2;
+          const hh = as*rw/2 + ac*rh/2;
+          return {
+            ...r,
+            x: Math.max(hw - rw/2, r.x??0),
+            y: Math.max(hh - rh/2, r.y??0),
+            w: rw,
+            h: rh,
+          };
+        }).map(r=>{
           if(seenRoomIds.has(r.id)){ r = {...r, id: r.id+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)}; }
           seenRoomIds.add(r.id);
           return r;
