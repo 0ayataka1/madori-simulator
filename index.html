@@ -2065,7 +2065,7 @@ function drawFurniture(f,ox,oy,sel){
     ctx.strokeStyle=sel?'#5c7a5c':'rgba(0,0,0,.25)'; ctx.lineWidth=sel?2.5:1;
     ctx.beginPath(); ctx.roundRect(-fw/2,-fh/2,fw,fh,3); ctx.stroke();
   }
-  drawFurnDetail(f.type,fw,fh,f.styleVariant);
+  drawFurnDetail(f.type,fw,fh,f.styleVariant,f.color);
   // AI wood grain overlay
   if(f.aiWoodGrain && fw>20 && fh>20){
     ctx.save();
@@ -2148,7 +2148,7 @@ function drawFurniture(f,ox,oy,sel){
   ctx.restore();
 }
 
-function drawFurnDetail(type,fw,fh,variant){
+function drawFurnDetail(type,fw,fh,variant,color){
   ctx.strokeStyle='rgba(0,0,0,.2)'; ctx.lineWidth=1;
 
   if(type==='sofa3'||type==='sofa1'){
@@ -2389,13 +2389,13 @@ function drawFurnDetail(type,fw,fh,variant){
 
   } else if(type==='sofa2'||type==='sofa_ott'){
     // Realistic sofa: backrest + seat cushions + armrests
-    const _sv = f.styleVariant||f.st||'背もたれ:上';
+    const _sv = variant||'背もたれ:上';
     const bsDir = _sv.includes('下')?'bottom':_sv.includes('左')?'left':_sv.includes('右')?'right':'top';
     const armW = Math.min(fw*0.1, 12);
     const bsH  = Math.min(fh*0.3, 22);
     const cushN = type==='sofa2' ? 2 : 3;
     // Main body
-    ctx.fillStyle = f.color||'#b8d4b8';
+    ctx.fillStyle = color||'#b8d4b8';
     ctx.fillRect(-fw/2,-fh/2,fw,fh);
     ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=1;
     ctx.strokeRect(-fw/2,-fh/2,fw,fh);
@@ -2438,7 +2438,7 @@ function drawFurnDetail(type,fw,fh,variant){
 
   } else if(type==='ottoman'){
     // Ottoman: cushioned rectangle, no backrest
-    ctx.fillStyle=f.color||'#c8dcc8';
+    ctx.fillStyle=color||'#c8dcc8';
     ctx.fillRect(-fw/2,-fh/2,fw,fh);
     ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.lineWidth=1;
     ctx.strokeRect(-fw/2,-fh/2,fw,fh);
