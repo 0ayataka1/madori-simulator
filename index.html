@@ -3946,7 +3946,7 @@ function buildScene3D(){
   });
 
   // Edge lines: brighter so walls are outlined even when very transparent
-  const edgeMat = new THREE.LineBasicMaterial({color: 0xd8c8b0, transparent:true, opacity:0.7});
+  const edgeMat = new THREE.LineBasicMaterial({color: 0xd8c8b0, transparent:true, opacity:0});
 
   const WALL_THK = 0.08;
 
@@ -4010,7 +4010,7 @@ function buildScene3D(){
     threeScene.add(mesh);
     // Edge lines
     const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(w,h,d));
-    const line  = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color:0x8a8070,transparent:true,opacity:0.6}));
+    const line  = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color:0x8a8070,transparent:true,opacity:0}));
     line.position.set(x,y,z);
     line.renderOrder = 2;
     threeScene.add(line);
