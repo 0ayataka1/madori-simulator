@@ -835,6 +835,10 @@ canvas{ display:block; }
           ↔ 右・下端をドラッグ → リサイズ<br>
           ⌨ 矢印キー → 0.1m単位移動
         </div>
+        <div class="ep-title" style="margin-top:14px;">階段を追加</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:10px;">
+          <button class="action-btn" style="font-size:10px;justify-content:center;padding:5px 4px;" onclick="addStairL()">🪜 L字階段</button>
+        </div>
         <div class="ep-title" style="margin-top:14px;">ゾーンを追加</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:10px;">
           <button class="action-btn" style="font-size:10px;justify-content:center;padding:5px 4px;" onclick="addZone('kitchen_walk')">🚶 キッチン歩行</button>
@@ -1982,7 +1986,45 @@ function _drawRoomContents(r, rx, ry, rw, rh){
     return; // skip default border for this zone
   }
 
-  if(r.stair){
+  if(r.stairL){
+    // L字かね折れ階段: 1st run（左下）+ 踊り場（右上角）+ 2nd run（上左）
+    const ls = Math.min(rw,rh)*0.42;
+    ctx.save();
+    // 踊り場（右上角 ls×ls）
+    ctx.fillStyle='rgba(0,0,0,.08)';
+    ctx.fillRect(rx+rw-ls, ry, ls, ls);
+    ctx.strokeStyle='rgba(0,0,0,.2)'; ctx.lineWidth=1;
+    ctx.strokeRect(rx+rw-ls, ry, ls, ls);
+    ctx.font='bold 8px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(0,0,0,.35)';
+    ctx.fillText('踊', rx+rw-ls/2, ry+ls/2);
+    // 1st run（左下エリア: x=[rx,rx+rw-ls], y=[ry+ls,ry+rh]）ハッチング
+    ctx.strokeStyle='rgba(0,0,0,.12)'; ctx.lineWidth=.8;
+    ctx.beginPath();
+    const r1x=rx,r1y=ry+ls,r1w=rw-ls,r1h=rh-ls;
+    for(let s=0;s<r1w+r1h;s+=9){
+      const x1=r1x+Math.max(0,s-r1h),y1=r1y+Math.min(r1h,s);
+      const x2=r1x+Math.min(r1w,s),  y2=r1y+Math.max(0,s-r1w);
+      ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+    }
+    ctx.stroke();
+    // 2nd run（上左エリア: x=[rx,rx+rw-ls], y=[ry,ry+ls]）ハッチング
+    ctx.beginPath();
+    const r2x=rx,r2y=ry,r2w=rw-ls,r2h=ls;
+    for(let s=0;s<r2w+r2h;s+=9){
+      const x1=r2x+Math.max(0,s-r2h),y1=r2y+Math.min(r2h,s);
+      const x2=r2x+Math.min(r2w,s),  y2=r2y+Math.max(0,s-r2w);
+      ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+    }
+    ctx.stroke();
+    // 方向矢印
+    ctx.fillStyle='rgba(0,0,0,.3)';
+    ctx.font=`bold ${Math.max(9,Math.min(13,r1h/4))}px sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('↑', r1x+r1w/2, r1y+r1h/2);
+    ctx.fillText('←', r2x+r2w/2, r2y+r2h/2);
+    ctx.restore();
+  } else if(r.stair){
     ctx.save(); ctx.strokeStyle='rgba(0,0,0,.12)'; ctx.lineWidth=.8;
     ctx.beginPath();
     for(let s=0;s<rw+rh;s+=9){
@@ -2801,6 +2843,20 @@ const ZONE_DEFS = {
   work_zone:    { name:'ワークゾーン',        w:2.0, h:2.0, color:'rgba(230,220,255,0.35)', tc:'#5a3a8a', dash:[6,3], borderColor:'#8a6acf' },
   free_zone:    { name:'フリーゾーン',        w:2.0, h:2.0, color:'rgba(220,240,230,0.3)', tc:'#3a6a5a', dash:[4,4], borderColor:'#6aaa8a' },
 };
+
+let stairLCounter = 1;
+function addStairL(){
+  const fl=floors[curFloor];
+  const id='stairL_'+(stairLCounter++);
+  fl.rooms.push({
+    id, name:'L字\n階段',
+    x:0.5, y:0.5, w:2.4, h:1.2,
+    color:'#ddd4c0', tc:'#5a4a20',
+    stair:true, stairL:true, rotation:0,
+  });
+  selectRoom(id);
+  renderEditRoomList(); draw();
+}
 
 let zoneCounter = 1;
 function addZone(type){
@@ -3991,7 +4047,10 @@ function buildScene3D(){
     threeScene.add(ceilMesh);
 
     // Stair
-    if(room.stair) drawStairMesh(threeScene, rx, rz, rw, rd, S, room.rotation||0);
+    if(room.stair){
+      if(room.stairL) drawStairLMesh(threeScene, rx, rz, rw, rd, S, room.rotation||0);
+      else drawStairMesh(threeScene, rx, rz, rw, rd, S, room.rotation||0);
+    }
   });
 
   // Outer boundary walls (thicker, slightly more opaque)
@@ -4072,6 +4131,45 @@ function drawStairMesh(scene, rx, rz, rw, rd, S, rotation){
   // Place group at room center, apply 2D rotation around Y axis
   group.position.set(rx+rw/2, 0, rz+rd/2);
   group.rotation.y = -(rotation||0) * Math.PI/180;
+  scene.add(group);
+}
+
+function drawStairLMesh(scene, rx, rz, rw, rd, S, rotation){
+  const WALL_H=2.8, n1=5, n2=5;
+  const stepH=WALL_H/(n1+n2), landingH=n1*stepH;
+  const ls=Math.min(rw,rd)*0.42;
+  const stairMat=new THREE.MeshLambertMaterial({color:0xc8b89a});
+  const landingMat=new THREE.MeshLambertMaterial({color:0xd0c890});
+  const group=new THREE.Group();
+
+  // 1st run: going along +Z (south→north), left portion (rw-ls wide)
+  const run1_d=rd-ls, step1_d=run1_d/n1;
+  for(let i=0;i<n1;i++){
+    const geo=new THREE.BoxGeometry((rw-ls)*0.9,stepH*(i+1),step1_d*0.9);
+    const mesh=new THREE.Mesh(geo,stairMat);
+    mesh.position.set(-ls/2, stepH*(i+1)/2, rd/2-step1_d*(i+0.5));
+    mesh.castShadow=true; group.add(mesh);
+  }
+
+  // Landing: ls×ls at top-right corner (local +x, -z)
+  {
+    const geo=new THREE.BoxGeometry(ls*0.9,stepH*0.4,ls*0.9);
+    const mesh=new THREE.Mesh(geo,landingMat);
+    mesh.position.set(rw/2-ls/2, landingH+stepH*0.2, -rd/2+ls/2);
+    group.add(mesh);
+  }
+
+  // 2nd run: going along -X (east→west), top strip (ls deep)
+  const run2_w=rw-ls, step2_w=run2_w/n2;
+  for(let i=0;i<n2;i++){
+    const geo=new THREE.BoxGeometry(step2_w*0.9,stepH*(i+1),ls*0.9);
+    const mesh=new THREE.Mesh(geo,stairMat);
+    mesh.position.set(rw/2-ls-step2_w*(i+0.5), landingH+stepH*(i+1)/2, -rd/2+ls/2);
+    mesh.castShadow=true; group.add(mesh);
+  }
+
+  group.position.set(rx+rw/2, 0, rz+rd/2);
+  group.rotation.y=-(rotation||0)*Math.PI/180;
   scene.add(group);
 }
 
@@ -5262,6 +5360,7 @@ function buildCompactState(){
       r:(fl.rooms||[]).map(r=>{
         const o={id:r.id, n:r.name, x:cm(r.x), y:cm(r.y), w:cm(r.w), h:cm(r.h), c:r.color, tc:r.tc};
         if(r.stair) o.st=1;
+        if(r.stairL) o.stL=1;
         if(r.zoneType) o.zt=r.zoneType;
         if(r.rotation) o.rot=r.rotation;
         return o;
@@ -5333,6 +5432,7 @@ async function loadFromShareUrl(){
           x:m(r.x), y:m(r.y), w:m(r.w), h:m(r.h),
           color:r.c, tc:r.tc,
           ...(r.st?{stair:true}:{}),
+          ...(r.stL?{stairL:true}:{}),
           ...(r.zt?{zoneType:r.zt}:{}),
           ...(r.rot?{rotation:r.rot}:{})
         }));
