@@ -977,10 +977,10 @@ canvas{ display:block; }
         <span style="font-size:9px;opacity:.7;">🖱 ドラッグ:回転 · ホイール:ズーム</span>
         <span style="display:flex;align-items:center;gap:6px;">
           壁の透明度:
-          <input type="range" id="wallOpacity" min="5" max="95" value="13" step="1"
+          <input type="range" id="wallOpacity" min="0" max="95" value="0" step="1"
             style="width:80px;accent-color:#5c7a5c;vertical-align:middle;"
             oninput="updateWallOpacity(this.value)">
-          <span id="wallOpacityVal" style="color:rgba(180,220,180,.9);min-width:28px;">13%</span>
+          <span id="wallOpacityVal" style="color:rgba(180,220,180,.9);min-width:28px;">0%</span>
         </span>
       </div>
     </div>
@@ -3923,21 +3923,13 @@ function buildScene3D(){
   ground.receiveShadow = true;
   threeScene.add(ground);
 
-  // Walls: use current slider value so opacity persists across rebuilds
-  const sliderEl = document.getElementById('wallOpacity');
-  const WALL_OPACITY = sliderEl ? parseFloat(sliderEl.value)/100 : 0.13;
-  // wallMat is now created per-room — see below
-  // Shared default for outer walls
-  const defaultWallColor = new THREE.Color(0xf0ede8);
-
-  // Outer wall — slightly more visible but still very transparent
+  // Walls: mesh fill is invisible by default; only edge lines define walls
   const outerWallMat = new THREE.MeshPhongMaterial({
-    color: 0xd8d0c4,
+    color: 0xffffff,
     transparent: true,
-    opacity: WALL_OPACITY,
+    opacity: 0,
     side: THREE.DoubleSide,
     depthWrite: false,
-    shininess: 40,
   });
 
   // Ceiling — almost invisible, just a faint plane
@@ -3970,20 +3962,13 @@ function buildScene3D(){
     // Room label
     addRoomLabel(room.name.replace('\n',' '), cx, 0.2, cz);
 
-    // 4 walls — per-room material with optional wallColor from photo
-    const roomWallColor = room.wallColor
-      ? cssColorToThree(room.wallColor)
-      : defaultWallColor.clone();
-    // Rooms with a photo color get slightly higher opacity so color is visible
-    const roomWallOpacity = WALL_OPACITY;
+    // 4 walls — no fill color; only edge lines are visible
     const wallMat = new THREE.MeshPhongMaterial({
-      color: roomWallColor,
+      color: 0xffffff,
       transparent: true,
-      opacity: roomWallOpacity,
+      opacity: 0,
       side: THREE.DoubleSide,
       depthWrite: false,
-      shininess: room.wallFinish==='gloss' ? 120 : room.wallFinish==='semi-gloss' ? 60 : 20,
-      specular: new THREE.Color(room.wallColor ? 0xffffff : 0x444444),
     });
     // Left
     addWallPlane(threeScene, wallMat, edgeMat, rx, WALL_H/2, cz,  WALL_THK, WALL_H, rd, 0);
@@ -3993,7 +3978,6 @@ function buildScene3D(){
     addWallPlane(threeScene, wallMat, edgeMat, cx, WALL_H/2, rz,  rw, WALL_H, WALL_THK, 1);
     // Back  (z+)
     addWallPlane(threeScene, wallMat, edgeMat, cx, WALL_H/2, rz+rd, rw, WALL_H, WALL_THK, 1);
-    if(room.wallColor) wallMat._hasPhotoColor = true;
     wallMaterials3D.push(wallMat);
 
     // Ceiling plane
