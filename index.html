@@ -3991,7 +3991,7 @@ function buildScene3D(){
     threeScene.add(ceilMesh);
 
     // Stair
-    if(room.stair) drawStairMesh(threeScene, rx, rz, rw, rd, S);
+    if(room.stair) drawStairMesh(threeScene, rx, rz, rw, rd, S, room.rotation||0);
   });
 
   // Outer boundary walls (thicker, slightly more opaque)
@@ -4055,18 +4055,24 @@ function buildWall(scene, mat, x, y, z, w, h, d, side){
   scene.add(mesh);
 }
 
-function drawStairMesh(scene, rx, rz, rw, rd, S){
+function drawStairMesh(scene, rx, rz, rw, rd, S, rotation){
   const steps = 10;
   const stepH = 2.8/steps;
   const stepD = rd/steps;
   const stairMat = new THREE.MeshLambertMaterial({color:0xc8b89a});
+  const group = new THREE.Group();
   for(let i=0;i<steps;i++){
     const geo = new THREE.BoxGeometry(rw*0.9, stepH*(i+1), stepD*0.9);
     const mesh = new THREE.Mesh(geo, stairMat);
-    mesh.position.set(rx+rw/2, stepH*(i+1)/2, rz+stepD*(i+0.5));
+    // position in local space: center x=0, steps along local +Z
+    mesh.position.set(0, stepH*(i+1)/2, -rd/2 + stepD*(i+0.5));
     mesh.castShadow=true; mesh.receiveShadow=true;
-    scene.add(mesh);
+    group.add(mesh);
   }
+  // Place group at room center, apply 2D rotation around Y axis
+  group.position.set(rx+rw/2, 0, rz+rd/2);
+  group.rotation.y = -(rotation||0) * Math.PI/180;
+  scene.add(group);
 }
 
 function add3DFurniture(f, S, WALL_H){
