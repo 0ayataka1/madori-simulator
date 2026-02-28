@@ -4687,10 +4687,10 @@ function applyAppState(state){
         const seenRoomIds = new Set();
         floors[k].rooms = sf.rooms.map(r=>({
           ...r,
-          x: Math.max(0, r.x||0),
-          y: Math.max(0, r.y||0),
-          w: Math.max(0.1, r.w||1),
-          h: Math.max(0.1, r.h||1),
+          x: Math.max(0, r.x??0),
+          y: Math.max(0, r.y??0),
+          w: Math.max(0.1, r.w??0.1),
+          h: Math.max(0.1, r.h??0.1),
         })).map(r=>{
           if(seenRoomIds.has(r.id)){ r = {...r, id: r.id+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)}; }
           seenRoomIds.add(r.id);
@@ -4766,6 +4766,7 @@ function loadFromCloud(){
     if(raw){
       const state = JSON.parse(raw);
       applyAppState(state);
+      lastSaveHash = stateHash(); // 読込直後のハッシュを記録して即時auto-saveを防ぐ
       // パネルUI・モードボタンをappModeに合わせて同期
       setMode(appMode);
       updateAreaLabel();
@@ -5223,10 +5224,10 @@ async function inflateB64(b64){
 }
 
 function buildCompactState(){
-  // v3: cm integers + skip empty floors, same structure as v2
+  // v4: mm integers (×1000) for sub-mm precision, prevents coordinate rounding errors
   const state = getAppState();
-  const cm = v => Math.round(v * 100); // meters → cm integer
-  const compact = { v:3, cf:state.curFloor, f:{}, fu:{}, w:{}, se:{} };
+  const cm = v => Math.round(v * 1000); // meters → mm integer (v4)
+  const compact = { v:4, cf:state.curFloor, f:{}, fu:{}, w:{}, se:{} };
   Object.keys(state.floors).forEach(k=>{
     const fl = state.floors[k];
     const fu = (state.furniture[k]||[]);
@@ -5298,7 +5299,48 @@ async function loadFromShareUrl(){
     const compact = JSON.parse(json);
     const v = compact.v||1;
 
-    if(v === 3){
+    if(v === 4){
+      // v4: mm integers (×1000) — high precision, no coordinate rounding errors
+      const m = v => v / 1000; // mm → meters
+      Object.keys(compact.f||{}).forEach(k=>{
+        if(!floors[k]) return;
+        const cf = compact.f[k];
+        floors[k].W = m(cf.W); floors[k].H = m(cf.H);
+        floors[k].rooms = (cf.r||[]).map(r=>({
+          id:r.id, name:r.n,
+          x:m(r.x), y:m(r.y), w:m(r.w), h:m(r.h),
+          color:r.c, tc:r.tc,
+          ...(r.st?{stair:true}:{}),
+          ...(r.zt?{zoneType:r.zt}:{}),
+          ...(r.rot?{rotation:r.rot}:{})
+        }));
+      });
+      Object.keys(compact.fu||{}).forEach(k=>{
+        furniture[k] = (compact.fu[k]||[]).map(f=>({
+          id:f.id, type:f.t,
+          x:m(f.x), y:m(f.y), w:m(f.w), h:m(f.h),
+          color:f.c, rotation:f.r||0, label:f.l,
+          ...(f.sv?{styleVariant:f.sv,st:f.sv}:{}),
+          ...(f.ed?{expandDir:f.ed}:{}),
+          ...(f.ow?{_openW:m(f.ow),_openH:m(f.oh)}:{}),
+          ...(f.cw?{_closedW:m(f.cw),_closedH:m(f.ch)}:{})
+        }));
+      });
+      Object.keys(compact.w||{}).forEach(k=>{
+        windows[k] = (compact.w[k]||[]).map(w=>({
+          id:w.id, wtype:w.wt,
+          x:m(w.x), y:m(w.y), w:m(w.ww),
+          ...(w.wa?{wall:w.wa}:{}),
+          ...(w.cr?{curtainRail:w.cr}:{})
+        }));
+      });
+      Object.keys(compact.se||{}).forEach(k=>{
+        structEls[k] = (compact.se[k]||[]).map(s=>({
+          id:s.id, stype:s.t,
+          x:m(s.x), y:m(s.y), w:m(s.w), h:m(s.h)
+        }));
+      });
+    } else if(v === 3){
       // v3: cm integers, same f/fu/w/se key structure as v2
       const m = v => v / 100; // cm → meters
       Object.keys(compact.f||{}).forEach(k=>{
@@ -5603,6 +5645,7 @@ window.addEventListener('resize', ()=>{
   if(hasShareParam){
     loadFromShareUrl().then(ok=>{
       if(ok){
+        lastSaveHash = stateHash(); // 読込直後のハッシュを記録して即時auto-saveを防ぐ
         document.getElementById('onboardingOverlay').style.display='none';
         history.replaceState(null,'',location.pathname);
         draw(); updateUI(); updateAreaLabel(); renderEditRoomList(); renderLegend();
