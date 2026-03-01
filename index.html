@@ -2733,14 +2733,14 @@ function autoPlacePerimeterWalls(){
   structEls[curFloor] = structEls[curFloor].filter(s => !LABELS.includes(s.label));
 
   const walls = [
-    // North wall (top):  drawn ABOVE y=0 so rooms at y=0 are at inner wall surface
-    { x:-t,      y:-t,      w:fl.W+2*t, h:t,    label:'壁N', stype:'wall_h' },
-    // South wall (bottom): drawn BELOW fl.H
-    { x:-t,      y:fl.H,    w:fl.W+2*t, h:t,    label:'壁S', stype:'wall_h' },
-    // West wall (left):  drawn LEFT of x=0
-    { x:-t,      y:-t,      w:t,    h:fl.H+2*t, label:'壁W', stype:'wall_v' },
-    // East wall (right): drawn RIGHT of fl.W
-    { x:fl.W,    y:-t,      w:t,    h:fl.H+2*t, label:'壁E', stype:'wall_v' },
+    // North wall (top): inside floor boundary at y=0
+    { x:0,        y:0,        w:fl.W, h:t,    label:'壁N', stype:'wall_h' },
+    // South wall (bottom): inside floor boundary at y=fl.H-t
+    { x:0,        y:fl.H-t,   w:fl.W, h:t,    label:'壁S', stype:'wall_h' },
+    // West wall (left): inside floor boundary at x=0
+    { x:0,        y:0,        w:t,    h:fl.H, label:'壁W', stype:'wall_v' },
+    // East wall (right): inside floor boundary at x=fl.W-t
+    { x:fl.W-t,   y:0,        w:t,    h:fl.H, label:'壁E', stype:'wall_v' },
   ];
 
   walls.forEach(w => {
