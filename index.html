@@ -1870,7 +1870,11 @@ function _drawImmediate(){
   fl.rooms.forEach(r=>drawRoom(r,ox,oy));
 
   // Structural elements drawn BEFORE outer wall border so wall overlaps edge cols cleanly
+  // Clip to floor area so strokeRect on perimeter walls doesn't bleed outside the boundary
+  ctx.save();
+  ctx.beginPath(); ctx.rect(ox, oy, fl.W*SCALE, fl.H*SCALE); ctx.clip();
   structEls[curFloor].forEach(s=>drawStructEl(s,ox,oy,s.id===selStructId));
+  ctx.restore();
 
   // outer wall border (drawn after structs - wraps outside room area)
   // Walls are now drawn at negative offset so this stroke marks the inner boundary
